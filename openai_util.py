@@ -8,17 +8,16 @@ with open("config.json") as f:
 
 client = openai.OpenAI(api_key=config["openai_key"], base_url=config["openai_endpoint"])
 
-# Token limit
-COST_FACTOR = 0.002 / 1000
-tokensLimit = 1000000
-tokensUsed = 0
+COST_FACTOR = config["cost_factor"] # Cost per token
+tokenLimit = config["single_token_limit"] # Token limit per run
+tokensUsed = 0 # Tokens used in this run
 
 
 def incrementTokensUsed(incr):
     global tokensUsed
     tokensUsed += incr
-    if tokensUsed > tokensLimit:
-        raise Exception("Token limit exceeded")
+    if tokensUsed > tokenLimit:
+        raise RuntimeError("Token limit exceeded")
 
 
 def getTokensUsed():
@@ -27,7 +26,7 @@ def getTokensUsed():
 
 def printUsage():
     print(
-        f"Tokens used: {tokensUsed} / {tokensLimit}, estimated cost: ￥{tokensUsed * COST_FACTOR}"
+        f"Tokens used: {tokensUsed} / {tokenLimit}, estimated cost: ￥{tokensUsed * COST_FACTOR}"
     )
 
 
@@ -44,13 +43,12 @@ atexit.register(beforeExit)
 
 
 class Agent:
-    def __init__(self, system_prompt: str, memory_rounds: int = 0, model="gpt-3.5-turbo"):
+    def __init__(self, system_prompt: str, model="gpt-3.5-turbo"):
         '''
-        system_prompt: The prompt to be used for the system messages
-        memory_rounds: The maximum rounds of chats to store in the memory'''
+        system_prompt: The system prompt
+        model: The model to use'''
         self.system_prompt = system_prompt
         self.memory = []
-        self.memory_size = memory_rounds * 2
         self.model = model
 
     def chat(self, text: str) -> str:
@@ -63,9 +61,6 @@ class Agent:
         )
         incrementTokensUsed(r.usage.total_tokens)
         self.memory.append({"role": "assistant", "content": r.choices[0].message.content})
-        if len(self.memory) >= self.memory_size:
-            self.memory.pop(0)
-            self.memory.pop(0)
         return r.choices[0].message.content
 
 if __name__ == "__main__":
