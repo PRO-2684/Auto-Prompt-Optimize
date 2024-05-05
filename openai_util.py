@@ -63,6 +63,17 @@ class Agent:
         self.memory.append({"role": "assistant", "content": r.choices[0].message.content})
         return r.choices[0].message.content
 
+def simple_chat(system_prompt, msg, model="gpt-3.5-turbo"):
+    r = client.chat.completions.create(
+        model = model,
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": msg}
+        ]
+    )
+    incrementTokensUsed(r.usage.total_tokens)
+    return r.choices[0].message.content
+
 if __name__ == "__main__":
     # Test the agent
     agent = Agent("You are a helpful assistant.", memory_rounds=5)
