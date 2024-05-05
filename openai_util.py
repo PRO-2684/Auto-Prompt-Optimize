@@ -8,9 +8,9 @@ with open("config.json") as f:
 
 client = openai.OpenAI(api_key=config["openai_key"], base_url=config["openai_endpoint"])
 
-COST_FACTOR = config["cost_factor"] # Cost per token
-tokenLimit = config["single_token_limit"] # Token limit per run
-tokensUsed = 0 # Tokens used in this run
+COST_FACTOR = config["cost_factor"]  # Cost per token
+tokenLimit = config["single_token_limit"]  # Token limit per run
+tokensUsed = 0  # Tokens used in this run
 
 
 def incrementTokensUsed(incr):
@@ -44,9 +44,9 @@ atexit.register(beforeExit)
 
 class Agent:
     def __init__(self, system_prompt: str, model="gpt-3.5-turbo"):
-        '''
+        """
         system_prompt: The system prompt
-        model: The model to use'''
+        model: The model to use"""
         self.system_prompt = system_prompt
         self.memory = []
         self.model = model
@@ -55,24 +55,25 @@ class Agent:
         messages = [{"role": "system", "content": self.system_prompt}]
         self.memory.append({"role": "user", "content": text})
         messages.extend(self.memory)
-        r = client.chat.completions.create(
-            model = self.model,
-            messages = messages
-        )
+        r = client.chat.completions.create(model=self.model, messages=messages)
         incrementTokensUsed(r.usage.total_tokens)
-        self.memory.append({"role": "assistant", "content": r.choices[0].message.content})
+        self.memory.append(
+            {"role": "assistant", "content": r.choices[0].message.content}
+        )
         return r.choices[0].message.content
+
 
 def simple_chat(system_prompt, msg, model="gpt-3.5-turbo"):
     r = client.chat.completions.create(
-        model = model,
-        messages = [
+        model=model,
+        messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": msg}
-        ]
+            {"role": "user", "content": msg},
+        ],
     )
     incrementTokensUsed(r.usage.total_tokens)
     return r.choices[0].message.content
+
 
 if __name__ == "__main__":
     # Test the agent
@@ -82,4 +83,3 @@ if __name__ == "__main__":
         if text == "exit":
             break
         print("Assistant:", agent.chat(text))
-
