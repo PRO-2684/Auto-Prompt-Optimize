@@ -1,49 +1,53 @@
 from openai_util import Agent, simple_chat
 from argparse import ArgumentParser
-from typing import Iterable
+from typing import Iterable, Generator, Any
+from utils import readLines, makeTable, banner, getPrompt, formatResponse
 
 
-def initAgent(system_prompt_path: str):
-    """Initializes the agent with the system prompt from the given path."""
-    with open(system_prompt_path) as f:
-        system_prompt = f.read()
-    agent = Agent(system_prompt)
-    return agent
-
-
-def read(path: str):
-    """Read the file from the given `path` and return a list of lines."""
-    result = []
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                result.append(line)
-    return result
-
-
-def makeTable(header: Iterable[str], data: Iterable[tuple[str]]) -> str:
-    """Make a nice Markdown table from the given header and data."""
-    table_head = f"| {' | '.join(header)} |"
-    table_sep = "| --- " * len(header) + "|"
-    table_body = ""
-    for row in data:
-        assert len(row) == len(header), "Row length does not match header length."
-        table_body += f"| {' | '.join(row)} |\n"
-    table = f"{table_head}\n{table_sep}\n{table_body}"
-    return table
+def getRealOutput(
+    prompt: str, data: Iterable[tuple[str, str]]
+) -> Generator[tuple[str, str, str], Any, None]:
+    """Get the real output for the given data."""
+    for input, expected_output in data:
+        real_output = simple_chat(prompt, input)
+        yield input, expected_output, real_output
 
 
 def train(
-    agent: Agent, data: Iterable[tuple[str, str]], rounds: int = 10
+    agent: Agent, data: Iterable[tuple[str, str]], rounds: int = 16
 ) -> str | None:
     """Train the agent with the given data and return the best prompt it finds."""
-    pass
+    banner("Training")
+    init_prompt = getPrompt("agent", "init")
+    after_prompt = getPrompt("agent", "after")
+    user_prompt = init_prompt.format(table=makeTable(["Input", "Expected Output"], data))
+    print(">>>", user_prompt)
+    response = agent.chat(user_prompt)
+    print("<<<", response)
+    formatted = formatResponse(response)
+    best_prompt = formatted.get("Prompt")
+    if not best_prompt:
+        return None
+    for i in range(rounds):
+        table = makeTable(
+            ["Input", "Expected Output", "Real Output"],
+            getRealOutput(best_prompt, data),
+        )
+        user_prompt = after_prompt.format(prompt=best_prompt, table=table)
+        print(f"[#{i+1}/{rounds}] >>>", user_prompt)
+        response = agent.chat(user_prompt)
+        print(f"[#{i+1}/{rounds}] <<<", response)
+        formatted = formatResponse(response)
+        best_prompt = formatted.get("Prompt")
+        if not best_prompt or best_prompt == "DONE":
+            break
+    return best_prompt
 
 
 def evaluate(system_prompt: str, data: Iterable[tuple[str, str]]) -> float:
     """Evaluate the agent with the given data and return the score."""
-    pass
+    banner("Evaluation")
+    return 0 # TODO: Implement this
 
 
 def main(
@@ -57,14 +61,11 @@ def main(
     `task`: The path to the task directory.
     `rounds`: The maximum number of rounds to find the best prompt."""
     # Initialize the agent
-    agent = initAgent("./prompts/agent.md")
+    agent = Agent(getPrompt("agent", "system"))
 
     # Training
-    train_input = read(f"{task}/train-input.txt")
-    train_output = read(f"{task}/train-output.txt")
-    if train_clip > 0:  # Clip the training data
-        train_input = train_input[:train_clip]
-        train_output = train_output[:train_clip]
+    train_input = readLines(f"{task}/train-input.txt", max_lines=train_clip)
+    train_output = readLines(f"{task}/train-output.txt", max_lines=train_clip)
     train_data = zip(train_input, train_output, strict=True)
     best_prompt = train(agent, train_data, rounds=rounds)
     if not best_prompt:
@@ -73,11 +74,8 @@ def main(
     print(f"Best prompt: {best_prompt}")
 
     # Evaluation
-    eval_input = read(f"{task}/eval-input.txt")
-    eval_output = read(f"{task}/eval-output.txt")
-    if eval_clip > 0:  # Clip the evaluation data
-        eval_input = eval_input[:eval_clip]
-        eval_output = eval_output[:eval_clip]
+    eval_input = readLines(f"{task}/eval-input.txt", max_lines=eval_clip)
+    eval_output = readLines(f"{task}/eval-output.txt", max_lines=eval_clip)
     eval_data = zip(eval_input, eval_output)
     score = evaluate(best_prompt, eval_data)
     print(f"Score: {score}")
