@@ -18,6 +18,11 @@ def readLines(path: str, max_lines: int = 0) -> list[str]:
     return result
 
 
+def escapeTable(text: str) -> str:
+    """Escape the given text for Markdown tables."""
+    return text.replace("|", "\\|").replace("\n", "\\n")
+
+
 def makeTable(header: Iterable[str], data: Iterable[tuple]) -> str:
     """Make a nice Markdown table from the given header and data."""
     table_head = f"| {' | '.join(header)} |"
@@ -48,19 +53,22 @@ def getPrompt(role: str, scene: str) -> str:
 def formatResponse(response: str) -> dict[str, str]:
     """Format the response into a dictionary."""
     # Agent response be like:
-    # **Thoughts**: <thoughts>
-    # **Prompt**: <prompt>
-    # **...**: ...
+    # # Thoughts
+    # <thoughts>
+    # # Prompt
+    # <prompt>
+    # # ...
+    # ...
     result = {}
-    for line in response.split("\n"):
-        if not line.strip():
-            continue
-        pair = line.split(":", 1)
-        if len(pair) != 2:
-            continue
-        key, value = pair
-        key = key.removeprefix("**").removesuffix("**")
-        result[key.strip()] = value.strip()
+    lines = response.strip().split("\n")
+    key = ""
+    for line in lines:
+        if line.startswith("# "):
+            key = line[2:]
+            result[key] = ""
+        else:
+            result[key] += line + "\n"
+    # Strip the values
+    for key in result:
+        result[key] = result[key].strip()
     return result
-
-

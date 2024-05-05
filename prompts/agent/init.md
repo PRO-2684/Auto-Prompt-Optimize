@@ -1,3 +1,3 @@
-Here's our `<input, expected_output>` pairs, please deduce the underlying system prompt of the LLM app:
+Here's our `<input, expected_output>` pairs, please propose an initial underlying system prompt of the LLM app:
 
 {table}

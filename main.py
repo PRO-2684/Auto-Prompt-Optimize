@@ -14,7 +14,7 @@ def getRealOutput(
 
 
 def train(
-    agent: Agent, data: Iterable[tuple[str, str]], rounds: int = 16
+    agent: Agent, data: list[tuple[str, str]], rounds: int = 16
 ) -> str | None:
     """Train the agent with the given data and return the best prompt it finds."""
     banner("Training")
@@ -38,13 +38,14 @@ def train(
         response = agent.chat(user_prompt)
         print(f"[#{i+1}/{rounds}] <<<", response)
         formatted = formatResponse(response)
-        best_prompt = formatted.get("Prompt")
-        if not best_prompt or best_prompt == "DONE":
+        new_prompt = formatted.get("Prompt")
+        if (not new_prompt) or "DONE" in new_prompt or new_prompt == best_prompt:
             break
+        best_prompt = new_prompt
     return best_prompt
 
 
-def evaluate(system_prompt: str, data: Iterable[tuple[str, str]]) -> float:
+def evaluate(system_prompt: str, data: list[tuple[str, str]]) -> float:
     """Evaluate the agent with the given data and return the score."""
     banner("Evaluation")
     return 0 # TODO: Implement this
@@ -66,19 +67,19 @@ def main(
     # Training
     train_input = readLines(f"{task}/train-input.txt", max_lines=train_clip)
     train_output = readLines(f"{task}/train-output.txt", max_lines=train_clip)
-    train_data = zip(train_input, train_output, strict=True)
+    train_data = list(zip(train_input, train_output, strict=True))
     best_prompt = train(agent, train_data, rounds=rounds)
     if not best_prompt:
-        print("Cannot find a suitable prompt.")
+        print("C* annot find a suitable prompt.")
         return
-    print(f"Best prompt: {best_prompt}")
+    print(f"* Best prompt: {best_prompt}")
 
     # Evaluation
     eval_input = readLines(f"{task}/eval-input.txt", max_lines=eval_clip)
     eval_output = readLines(f"{task}/eval-output.txt", max_lines=eval_clip)
-    eval_data = zip(eval_input, eval_output)
+    eval_data = list(zip(eval_input, eval_output, strict=True))
     score = evaluate(best_prompt, eval_data)
-    print(f"Score: {score}")
+    print(f"* Score: {score}")
 
 
 if __name__ == "__main__":
