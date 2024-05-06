@@ -14,13 +14,16 @@ def getRealOutput(
 
 
 def train(
-    agent: Agent, data: list[tuple[str, str]], rounds: int = 16
+    agent: Agent, task: str, sample: int = 8, rounds: int = 16
 ) -> str | None:
     """Train the agent with the given data and return the best prompt it finds."""
+    train_input = sampleLines(f"{task}/train-input.txt", sample)
+    train_output = sampleLines(f"{task}/train-output.txt", sample)
+    train_data = list(zip(train_input, train_output, strict=True))
     banner("Training")
     init_prompt = getPrompt("agent", "init")
     after_prompt = getPrompt("agent", "after")
-    user_prompt = init_prompt.format(examples=makeMd(["Input", "Expected Output"], data))
+    user_prompt = init_prompt.format(examples=makeMd(["Input", "Expected Output"], train_data))
     print(">>>", user_prompt)
     response = agent.chat(user_prompt)
     print("<<<", response)
@@ -31,7 +34,7 @@ def train(
     for i in range(rounds):
         examples = makeMd(
             ["Input", "Expected Output", "Real Output"],
-            getRealOutput(best_prompt, data),
+            getRealOutput(best_prompt, train_data),
         )
         user_prompt = after_prompt.format(prompt=best_prompt, examples=examples)
         print(f"[#{i+1}/{rounds}] >>>", user_prompt)
@@ -45,10 +48,23 @@ def train(
     return best_prompt
 
 
-def evaluate(system_prompt: str, data: list[tuple[str, str]]) -> float:
+def evaluate(evaluator: Agent, system_prompt: str, task: str, sample: int = 32) -> float:
     """Evaluate the agent with the given data and return the score."""
+    eval_input = sampleLines(f"{task}/eval-input.txt", sample)
+    eval_output = sampleLines(f"{task}/eval-output.txt", sample)
+    eval_data = list(zip(eval_input, eval_output, strict=True))
     banner("Evaluation")
-    return 0 # TODO: Implement this
+    after_prompt = getPrompt("evaluator", "after")
+    rating_sum = 0
+    for i, output in enumerate(getRealOutput(system_prompt, eval_data)):
+        input, expected_output, real_output = output
+        print(f"[#{i+1}/{sample}]", end=" ")
+        response = evaluator.chat(after_prompt.format(text1=expected_output, text2=real_output))
+        formatted = formatResponse(response)
+        rating = formatted.get("Rating")
+        rating_sum += int(rating)
+        print(f"{rating}/5")
+    return rating_sum / sample if sample else 0
 
 
 def main(
@@ -65,21 +81,18 @@ def main(
     agent = Agent(getPrompt("agent", "system"))
 
     # Training
-    train_input = sampleLines(f"{task}/train-input.txt", train_sample)
-    train_output = sampleLines(f"{task}/train-output.txt", train_sample)
-    train_data = list(zip(train_input, train_output, strict=True))
-    best_prompt = train(agent, train_data, rounds=rounds)
+    best_prompt = train(agent, task, sample=train_sample, rounds=rounds)
     if not best_prompt:
         print("C* annot find a suitable prompt.")
         return
     print(f"* Best prompt: {best_prompt}")
 
+    # Initialize the evaluator
+    evaluator = Agent(getPrompt("evaluator", "system"))
+
     # Evaluation
-    eval_input = sampleLines(f"{task}/eval-input.txt", eval_sample)
-    eval_output = sampleLines(f"{task}/eval-output.txt", eval_sample)
-    eval_data = list(zip(eval_input, eval_output, strict=True))
-    score = evaluate(best_prompt, eval_data)
-    print(f"* Score: {score}")
+    score = evaluate(evaluator, best_prompt, task, sample=eval_sample)
+    print(f"* Score: {score}/5")
 
 
 if __name__ == "__main__":
@@ -100,13 +113,13 @@ if __name__ == "__main__":
         "--train-sample",
         type=int,
         default=8,
-        help="Maximum number of training examples to use, 0 for all.",
+        help="Maximum number of training examples to use, default to 8.",
     )
     parser.add_argument(
         "--eval-sample",
         type=int,
-        default=8,
-        help="Maximum number of evaluation examples to use, 0 for all.",
+        default=32,
+        help="Maximum number of evaluation examples to use, default to 32.",
     )
     args = parser.parse_args()
     main(args.task, args.rounds, args.train_sample, args.eval_sample)

@@ -1,7 +1,7 @@
 I'll provide you with an existing deduced prompt, and the inputs, expected outputs and real outputs from the LLM app following that prompt. Please:
 
 1. Evaluate the real outputs and see if they're similar enough to the expected outputs.
-2. If they're not similar enough, propose a better prompt in the `Prompt` section. (you can completely change the prompt instead of improving it if the outputs are very different)
+2. If they're not similar enough, propose a better prompt in the `Prompt` section. (you can *completely abandon* the original prompt if the outputs are very different)
 3. If they're similar enough, answer `DONE` in the `Prompt` section.
 
 Here's the existing prompt:
