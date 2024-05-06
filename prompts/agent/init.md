@@ -12,4 +12,4 @@ Your thoughts, observations, and reasoning.
 Your deduced prompt.
 ```
 
-You should **only provide the deduced prompt**, without any special prefix in the `Prompt` section. Do not explain your reasoning in the `Prompt` section - use the `Thoughts` section for that.
+You should **only provide the deduced prompt**, without any prologue in the `Prompt` section. Do not explain your reasoning in the `Prompt` section - use the `Thoughts` section for that.

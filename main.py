@@ -23,7 +23,9 @@ def train(
     banner("Training")
     init_prompt = getPrompt("agent", "init")
     after_prompt = getPrompt("agent", "after")
-    user_prompt = init_prompt.format(examples=makeMd(["Input", "Expected Output"], train_data))
+    user_prompt = init_prompt.format(
+        examples=makeMd(["Input", "Expected Output"], train_data)
+    )
     print(">>>", user_prompt)
     response = agent.chat(user_prompt)
     print("<<<", response)
@@ -48,7 +50,9 @@ def train(
     return best_prompt
 
 
-def evaluate(evaluator: Agent, system_prompt: str, task: str, sample: int = 32) -> float:
+def evaluate(
+    evaluator: Agent, system_prompt: str, task: str, sample: int = 32
+) -> float:
     """Evaluate the agent with the given data and return the score."""
     eval_input = sampleLines(f"{task}/eval-input.txt", sample)
     eval_output = sampleLines(f"{task}/eval-output.txt", sample)
@@ -58,12 +62,14 @@ def evaluate(evaluator: Agent, system_prompt: str, task: str, sample: int = 32) 
     rating_sum = 0
     for i, output in enumerate(getRealOutput(system_prompt, eval_data)):
         input, expected_output, real_output = output
-        print(f"[#{i+1}/{sample}]", end=" ")
-        response = evaluator.chat(after_prompt.format(text1=expected_output, text2=real_output))
+        prompt = after_prompt.format(text1=expected_output, text2=real_output)
+        print(f"[#{i+1}/{sample}] >>>", prompt)
+        response = evaluator.chat(prompt)
+        print(f"[#{i+1}/{sample}] <<<", response)
         formatted = formatResponse(response)
         rating = formatted.get("Rating")
         rating_sum += int(rating)
-        print(f"{rating}/5")
+        print(f"[#{i+1}/{sample}] {rating}/5")
     return rating_sum / sample if sample else 0
 
 
@@ -83,7 +89,7 @@ def main(
     # Training
     best_prompt = train(agent, task, sample=train_sample, rounds=rounds)
     if not best_prompt:
-        print("C* annot find a suitable prompt.")
+        print("Cannot find a suitable prompt.")
         return
     print(f"* Best prompt: {best_prompt}")
 
