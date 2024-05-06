@@ -1,15 +1,15 @@
-Based on your proposed prompt ```{prompt}```, here's our `<input, expected_output, real_output>` pairs. Please try to deduce a better prompt, or propose `DONE` if you decide real outputs are similar enough to expected outputs, and thus the current prompt is good enough:
+I'll provide you with an existing deduced prompt, and the inputs, expected outputs and real outputs from the LLM app following that prompt. Please:
+
+1. Evaluate the real outputs and see if they're similar enough to the expected outputs.
+2. If they're not similar enough, propose a better prompt in the `Prompt` section.
+3. If they're similar enough, answer `DONE` in the `Prompt` section.
+
+Here's the existing prompt:
+
+```text
+{prompt}
+```
+
+Here's our `<input, expected_output, real_output>` pairs:
 
 {examples}
-
-## Note
-
-You should always answer in the format of:
-
-```markdown
-# Thoughts
-Your thoughts, observations, and reasoning.
-
-# Prompt
-Your new deduced prompt, or `DONE`.
-```
