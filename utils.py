@@ -1,21 +1,23 @@
 from typing import Iterable
 from os import get_terminal_size
 from functools import cache
+from random import sample
 
 
-def readLines(path: str, max_lines: int = 0) -> list[str]:
+@cache
+def readLines(path: str) -> list[str]:
     """Read the file from the given `path` and return a list of **non-empty** lines."""
-    result = []
-    count = 0
     with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                count += 1
-                result.append(line)
-                if max_lines > 0 and count >= max_lines:
-                    break
-    return result
+        result = f.readlines()
+    result = map(str.strip, result)
+    result = filter(None, result)
+    return list(result)
+
+
+def sampleLines(path: str, n: int) -> list[str]:
+    """Sample `n` lines from the file at the given `path`."""
+    lines = readLines(path)
+    return sample(lines, n)
 
 
 def makeMd(header: Iterable[str], data: Iterable[tuple]) -> str:

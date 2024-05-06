@@ -1,7 +1,7 @@
 from openai_util import Agent, simple_chat
 from argparse import ArgumentParser
 from typing import Iterable, Generator, Any
-from utils import readLines, makeMd, banner, getPrompt, formatResponse
+from utils import sampleLines, makeMd, banner, getPrompt, formatResponse
 
 
 def getRealOutput(
@@ -53,9 +53,9 @@ def evaluate(system_prompt: str, data: list[tuple[str, str]]) -> float:
 
 def main(
     task: str = "./sample/chat-summary",
-    rounds: int = 16,
-    train_clip: int = 0,
-    eval_clip: int = 0,
+    rounds: int = 8,
+    train_sample: int = 8,
+    eval_sample: int = 8,
 ):
     """Main function to train and evaluate the agent on the given task.
 
@@ -65,8 +65,8 @@ def main(
     agent = Agent(getPrompt("agent", "system"))
 
     # Training
-    train_input = readLines(f"{task}/train-input.txt", max_lines=train_clip)
-    train_output = readLines(f"{task}/train-output.txt", max_lines=train_clip)
+    train_input = sampleLines(f"{task}/train-input.txt", train_sample)
+    train_output = sampleLines(f"{task}/train-output.txt", train_sample)
     train_data = list(zip(train_input, train_output, strict=True))
     best_prompt = train(agent, train_data, rounds=rounds)
     if not best_prompt:
@@ -75,8 +75,8 @@ def main(
     print(f"* Best prompt: {best_prompt}")
 
     # Evaluation
-    eval_input = readLines(f"{task}/eval-input.txt", max_lines=eval_clip)
-    eval_output = readLines(f"{task}/eval-output.txt", max_lines=eval_clip)
+    eval_input = sampleLines(f"{task}/eval-input.txt", eval_sample)
+    eval_output = sampleLines(f"{task}/eval-output.txt", eval_sample)
     eval_data = list(zip(eval_input, eval_output, strict=True))
     score = evaluate(best_prompt, eval_data)
     print(f"* Score: {score}")
@@ -93,20 +93,20 @@ if __name__ == "__main__":
     parser.add_argument(
         "--rounds",
         type=int,
-        default=16,
+        default=8,
         help="Maximum number of rounds to find the best prompt.",
     )
     parser.add_argument(
-        "--train-clip",
+        "--train-sample",
         type=int,
-        default=0,
+        default=8,
         help="Maximum number of training examples to use, 0 for all.",
     )
     parser.add_argument(
-        "--eval-clip",
+        "--eval-sample",
         type=int,
-        default=0,
+        default=8,
         help="Maximum number of evaluation examples to use, 0 for all.",
     )
     args = parser.parse_args()
-    main(args.task, args.rounds, args.train_clip, args.eval_clip)
+    main(args.task, args.rounds, args.train_sample, args.eval_sample)
