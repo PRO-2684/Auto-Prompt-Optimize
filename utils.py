@@ -28,7 +28,7 @@ def makeMd(header: Iterable[str], data: Iterable[tuple]) -> str:
         i += 1
         result += f"## Example {i}\n"
         for head, value in zip(header, row):
-            result += f"### {head}\n{value}\n\n"
+            result += f"### {head}\n```text\n{value}\n```\n\n"
     return result.strip()
 
 
