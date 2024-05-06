@@ -1,6 +1,8 @@
 Based on your proposed prompt ```{prompt}```, here's our `<input, expected_output, real_output>` pairs. Please try to deduce a better prompt, or propose `DONE` if you decide real outputs are similar enough to expected outputs, and thus the current prompt is good enough:
 
-{table}
+{examples}
+
+## Note
 
 You should always answer in the format of:
 

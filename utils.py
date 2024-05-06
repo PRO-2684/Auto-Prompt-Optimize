@@ -18,21 +18,16 @@ def readLines(path: str, max_lines: int = 0) -> list[str]:
     return result
 
 
-def escapeTable(text: str) -> str:
-    """Escape the given text for Markdown tables."""
-    return text.replace("|", "\\|").replace("\n", "\\n")
-
-
-def makeTable(header: Iterable[str], data: Iterable[tuple]) -> str:
-    """Make a nice Markdown table from the given header and data."""
-    table_head = f"| {' | '.join(header)} |"
-    table_sep = "| --- " * len(header) + "|"
-    table_body = ""
+def makeMd(header: Iterable[str], data: Iterable[tuple]) -> str:
+    """Make a nice Markdown display from the given header and data."""
+    result = ""
+    i = 0
     for row in data:
-        assert len(row) == len(header), "Row length does not match header length."
-        table_body += f"| {' | '.join(row)} |\n"
-    table = f"{table_head}\n{table_sep}\n{table_body}"
-    return table
+        i += 1
+        result += f"## Example {i}\n"
+        for head, value in zip(header, row):
+            result += f"### {head}\n{value}\n"
+    return result
 
 
 def banner(text: str):

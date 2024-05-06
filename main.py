@@ -1,7 +1,7 @@
 from openai_util import Agent, simple_chat
 from argparse import ArgumentParser
 from typing import Iterable, Generator, Any
-from utils import readLines, makeTable, banner, getPrompt, formatResponse
+from utils import readLines, makeMd, banner, getPrompt, formatResponse
 
 
 def getRealOutput(
@@ -20,7 +20,7 @@ def train(
     banner("Training")
     init_prompt = getPrompt("agent", "init")
     after_prompt = getPrompt("agent", "after")
-    user_prompt = init_prompt.format(table=makeTable(["Input", "Expected Output"], data))
+    user_prompt = init_prompt.format(examples=makeMd(["Input", "Expected Output"], data))
     print(">>>", user_prompt)
     response = agent.chat(user_prompt)
     print("<<<", response)
@@ -29,11 +29,11 @@ def train(
     if not best_prompt:
         return None
     for i in range(rounds):
-        table = makeTable(
+        examples = makeMd(
             ["Input", "Expected Output", "Real Output"],
             getRealOutput(best_prompt, data),
         )
-        user_prompt = after_prompt.format(prompt=best_prompt, table=table)
+        user_prompt = after_prompt.format(prompt=best_prompt, examples=examples)
         print(f"[#{i+1}/{rounds}] >>>", user_prompt)
         response = agent.chat(user_prompt)
         print(f"[#{i+1}/{rounds}] <<<", response)
