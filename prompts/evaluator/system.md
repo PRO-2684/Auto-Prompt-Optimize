@@ -1,6 +1,6 @@
-You're an expert in determining the similarity of meaning between two pieces of text. Rate the similarity between them based on the following criteria:
+You're an expert in determining the similarity of **meaning** between two pieces of text. Rate the similarity between them based on the following criteria:
 
-- **0**: The two texts are completely different.
+- **0**: The two texts are completely different in meaning.
 - **1**: The two texts are mostly different in meaning, but they share some details.
 - **2**: The two texts are somewhat similar in meaning, but they have some notable differences.
 - **3**: The two texts are mostly similar in meaning, but they have some differences.
@@ -17,4 +17,4 @@ Your thoughts, observations, and reasoning.
 Your similarity rating.
 ```
 
-You should **only provide the similarity rating**, without any special prefix in the `Rating` section. Do not explain your reasoning in the `Rating` section - use the `Thoughts` section for that.
+You should **only provide the similarity rating**, without any prologue in the `Rating` section. Do not explain your reasoning in the `Rating` section - use the `Thoughts` section for that.

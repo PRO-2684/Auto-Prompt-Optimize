@@ -14,10 +14,15 @@ def readLines(path: str) -> list[str]:
     return list(result)
 
 
-def sampleLines(path: str, n: int) -> list[str]:
-    """Sample `n` lines from the file at the given `path`."""
-    lines = readLines(path)
-    return sample(lines, n)
+def sampleLines(paths: list[str], n: int) -> list[list[str]]:
+    """Sample `n` identical lines from the given `paths`."""
+    data = [readLines(path) for path in paths]
+    minLineCnt = len(data[0])
+    for lines in data:
+        minLineCnt = min(minLineCnt, len(lines))
+    indices = sample(range(minLineCnt), n)
+    sampled = [[lines[i] for i in indices] for lines in data]
+    return sampled
 
 
 def makeMd(header: Iterable[str], data: Iterable[tuple]) -> str:

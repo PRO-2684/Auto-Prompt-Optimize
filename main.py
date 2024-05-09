@@ -2,9 +2,10 @@ from openai_util import Agent, simple_chat
 from argparse import ArgumentParser
 from typing import Iterable, Generator, Any
 from utils import sampleLines, makeMd, banner, getPrompt, formatResponse
+from re import search
 
 
-def getRealOutput(
+def getRealOutputs(
     prompt: str, data: Iterable[tuple[str, str]]
 ) -> Generator[tuple[str, str, str], Any, None]:
     """Get the real output for the given data."""
@@ -13,12 +14,35 @@ def getRealOutput(
         yield input, expected_output, real_output
 
 
+def getRealOutputsAndRatings(
+    evaluator: Agent, sys_prompt: str, data: Iterable[tuple[str, str]], log: bool = False
+) -> Generator[tuple[str, str, str, int], Any, None]:
+    """Append the real output and rating at the end of the given data."""
+    after_prompt = getPrompt("evaluator", "after")
+    for input, expected_output in data:
+        real_output = simple_chat(sys_prompt, input)
+        prompt = after_prompt.format(text1=expected_output, text2=real_output)
+        log and print(">>>", prompt)
+        response = evaluator.chat(prompt)
+        log and print("<<<", response)
+        formatted = formatResponse(response)
+        rating = formatted.get("Rating")
+        rating = int(search(r"\d", rating).group()) if rating else 0
+        yield input, expected_output, real_output, rating
+
+
+def getAverageScore(evaluated_data: list[tuple[str, str, str, int]]) -> float:
+    sum_score = 0
+    for _, _, _, score in evaluated_data:
+        sum_score += score
+    return sum_score / len(evaluated_data)
+
+
 def train(
-    agent: Agent, task: str, sample: int = 8, rounds: int = 16
+    agent: Agent, evaluator: Agent, task: str, sample: int = 8, rounds: int = 16
 ) -> str | None:
     """Train the agent with the given data and return the best prompt it finds."""
-    train_input = sampleLines(f"{task}/train-input.txt", sample)
-    train_output = sampleLines(f"{task}/train-output.txt", sample)
+    train_input, train_output = sampleLines([f"{task}/train-input.txt", f"{task}/train-output.txt"], sample)
     train_data = list(zip(train_input, train_output, strict=True))
     banner("Training")
     init_prompt = getPrompt("agent", "init")
@@ -30,23 +54,35 @@ def train(
     response = agent.chat(user_prompt)
     print("<<<", response)
     formatted = formatResponse(response)
-    best_prompt = formatted.get("Prompt")
-    if not best_prompt:
+    prev_prompt = formatted.get("Prompt")
+    print("*prev_prompt:", prev_prompt)
+    if not prev_prompt:
         return None
+    best_score = -1
+    best_prompt = prev_prompt
+    best_evaluated_data = []
     for i in range(rounds):
+        prev_evaluated_data = list(getRealOutputsAndRatings(evaluator, prev_prompt, train_data))
+        prev_score = getAverageScore(prev_evaluated_data)
+        if prev_score > best_score:
+            best_score = prev_score
+            best_prompt = prev_prompt
+            best_evaluated_data = prev_evaluated_data
         examples = makeMd(
-            ["Input", "Expected Output", "Real Output"],
-            getRealOutput(best_prompt, train_data),
+            ["Input", "Expected Output", "Real Output", "Rating"],
+            best_evaluated_data
         )
         user_prompt = after_prompt.format(prompt=best_prompt, examples=examples)
         print(f"[#{i+1}/{rounds}] >>>", user_prompt)
+        print("*best_prompt:", best_prompt)
         response = agent.chat(user_prompt)
         print(f"[#{i+1}/{rounds}] <<<", response)
         formatted = formatResponse(response)
         new_prompt = formatted.get("Prompt")
-        if (not new_prompt) or "DONE" in new_prompt or new_prompt == best_prompt:
+        print("*new_prompt:", new_prompt)
+        if (not new_prompt) or "DONE" in new_prompt or new_prompt == prev_prompt:
             break
-        best_prompt = new_prompt
+        prev_prompt = new_prompt
     return best_prompt
 
 
@@ -54,21 +90,13 @@ def evaluate(
     evaluator: Agent, system_prompt: str, task: str, sample: int = 32
 ) -> float:
     """Evaluate the agent with the given data and return the score."""
-    eval_input = sampleLines(f"{task}/eval-input.txt", sample)
-    eval_output = sampleLines(f"{task}/eval-output.txt", sample)
+    eval_input, eval_output = sampleLines([f"{task}/eval-input.txt", f"{task}/eval-output.txt"], sample)
     eval_data = list(zip(eval_input, eval_output, strict=True))
     banner("Evaluation")
-    after_prompt = getPrompt("evaluator", "after")
     rating_sum = 0
-    for i, output in enumerate(getRealOutput(system_prompt, eval_data)):
-        input, expected_output, real_output = output
-        prompt = after_prompt.format(text1=expected_output, text2=real_output)
-        print(f"[#{i+1}/{sample}] >>>", prompt)
-        response = evaluator.chat(prompt)
-        print(f"[#{i+1}/{sample}] <<<", response)
-        formatted = formatResponse(response)
-        rating = formatted.get("Rating")
-        rating_sum += int(rating)
+    for i, output in enumerate(getRealOutputsAndRatings(evaluator, system_prompt, eval_data, True)):
+        input, expected_output, real_output, rating = output
+        rating_sum += rating
         print(f"[#{i+1}/{sample}] {rating}/5")
     return rating_sum / sample if sample else 0
 
@@ -83,18 +111,16 @@ def main(
 
     `task`: The path to the task directory.
     `rounds`: The maximum number of rounds to find the best prompt."""
-    # Initialize the agent
+    # Initialize the agents
     agent = Agent(getPrompt("agent", "system"))
+    evaluator = Agent(getPrompt("evaluator", "system"))
 
     # Training
-    best_prompt = train(agent, task, sample=train_sample, rounds=rounds)
+    best_prompt = train(agent, evaluator, task, sample=train_sample, rounds=rounds)
     if not best_prompt:
         print("Cannot find a suitable prompt.")
         return
     print(f"* Best prompt: {best_prompt}")
-
-    # Initialize the evaluator
-    evaluator = Agent(getPrompt("evaluator", "system"))
 
     # Evaluation
     score = evaluate(evaluator, best_prompt, task, sample=eval_sample)
