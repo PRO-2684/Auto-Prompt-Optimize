@@ -104,28 +104,32 @@ def main(
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
+        "-T",
         "--task",
         type=str,
         default="./sample/chat-summary",
         help="Path to the task directory.",
     )
     parser.add_argument(
+        "-r",
         "--rounds",
         type=int,
         default=8,
         help="Maximum number of rounds to find the best prompt.",
     )
     parser.add_argument(
+        "-t",
         "--train-sample",
         type=int,
         default=8,
-        help="Maximum number of training examples to use, default to 8.",
+        help="Maximum number of examples to use when training on each iteration, default to 8.",
     )
     parser.add_argument(
+        "-e",
         "--eval-sample",
         type=int,
         default=32,
-        help="Maximum number of evaluation examples to use, default to 32.",
+        help="Maximum number of examples to use on evaluation, default to 32.",
     )
     args = parser.parse_args()
     main(args.task, args.rounds, args.train_sample, args.eval_sample)

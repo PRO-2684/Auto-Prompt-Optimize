@@ -4,16 +4,17 @@
 
 ```text
 $ python3 main.py --help
-usage: main.py [-h] [--task TASK] [--rounds ROUNDS] [--train-clip TRAIN_CLIP] [--eval-clip EVAL_CLIP]
+usage: main.py [-h] [-T TASK] [-r ROUNDS] [-t TRAIN_SAMPLE] [-e EVAL_SAMPLE]
 
 options:
   -h, --help            show this help message and exit
-  --task TASK           Path to the task directory.
-  --rounds ROUNDS       Maximum number of rounds to find the best prompt.
-  --train-clip TRAIN_CLIP
-                        Maximum number of training examples to use, 0 for all.
-  --eval-clip EVAL_CLIP
-                        Maximum number of evaluation examples to use, 0 for all.
+  -T TASK, --task TASK  Path to the task directory.
+  -r ROUNDS, --rounds ROUNDS
+                        Maximum number of rounds to find the best prompt.
+  -t TRAIN_SAMPLE, --train-sample TRAIN_SAMPLE
+                        Maximum number of examples to use when training on each iteration, default to 8.
+  -e EVAL_SAMPLE, --eval-sample EVAL_SAMPLE
+                        Maximum number of examples to use on evaluation, default to 32.
 ```
 
 The task directory shall be a folder containing the following files:
