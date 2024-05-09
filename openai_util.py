@@ -48,22 +48,15 @@ class Agent:
         system_prompt: The system prompt
         model: The model to use"""
         self.system_prompt = system_prompt
-        # self.memory = []
         self.model = model
 
     def chat(self, text: str) -> str:
-        # messages = [{"role": "system", "content": self.system_prompt}]
-        # self.memory.append({"role": "user", "content": text})
-        # messages.extend(self.memory)
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": text},
         ]
         r = client.chat.completions.create(model=self.model, messages=messages)
         incrementTokensUsed(r.usage.total_tokens)
-        # self.memory.append(
-            # {"role": "assistant", "content": r.choices[0].message.content}
-        # )
         return r.choices[0].message.content
 
 
