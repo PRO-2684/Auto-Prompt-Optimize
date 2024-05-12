@@ -1,5 +1,11 @@
 # Auto Prompt Optimization
 
+## 📦 Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
 ## 🤔 Usage
 
 ```text

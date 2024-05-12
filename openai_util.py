@@ -1,5 +1,6 @@
 import openai
-import atexit
+import backoff
+from atexit import register as on_exit
 from json import load, dump
 
 # Load configuration
@@ -39,7 +40,12 @@ def beforeExit():
     print("Statistics saved.")
 
 
-atexit.register(beforeExit)
+on_exit(beforeExit)
+
+
+@backoff.on_exception(backoff.expo, openai.RateLimitError)
+def chat_with_backoff(**kwargs):
+    return client.chat.completions.create(**kwargs)
 
 
 class Agent:
@@ -55,7 +61,7 @@ class Agent:
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": text},
         ]
-        r = client.chat.completions.create(model=self.model, messages=messages)
+        r = chat_with_backoff(model=self.model, messages=messages)
         incrementTokensUsed(r.usage.total_tokens)
         return r.choices[0].message.content
 

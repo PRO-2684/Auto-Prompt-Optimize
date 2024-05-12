@@ -5,15 +5,6 @@ from utils import sampleLines, makeMd, banner, getPrompt, formatResponse
 from re import search
 
 
-def getRealOutputs(
-    prompt: str, data: Iterable[tuple[str, str]]
-) -> Generator[tuple[str, str, str], Any, None]:
-    """Get the real output for the given data."""
-    for input, expected_output in data:
-        real_output = simple_chat(prompt, input)
-        yield input, expected_output, real_output
-
-
 def getRealOutputsAndRatings(
     evaluator: Agent, sys_prompt: str, data: Iterable[tuple[str, str]], log: bool = False
 ) -> Generator[tuple[str, str, str, int], Any, None]:
@@ -87,7 +78,7 @@ def train(
 
 
 def evaluate(
-    evaluator: Agent, system_prompt: str, task: str, sample: int = 32
+    evaluator: Agent, system_prompt: str, task: str, sample: int = 8
 ) -> float:
     """Evaluate the agent with the given data and return the score."""
     eval_input, eval_output = sampleLines([f"{task}/eval-input.txt", f"{task}/eval-output.txt"], sample)
@@ -95,7 +86,7 @@ def evaluate(
     banner("Evaluation")
     rating_sum = 0
     for i, output in enumerate(getRealOutputsAndRatings(evaluator, system_prompt, eval_data, True)):
-        input, expected_output, real_output, rating = output
+        _, _, _, rating = output
         rating_sum += rating
         print(f"[#{i+1}/{sample}] {rating}/5")
     return rating_sum / sample if sample else 0
