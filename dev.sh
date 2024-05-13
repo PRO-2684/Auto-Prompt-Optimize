@@ -1,0 +1,1 @@
+python3 main.py --population=4 --train-sample=4 --eval-sample=4 --rounds=4 -v

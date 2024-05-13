@@ -2,6 +2,7 @@ from typing import Iterable
 from os import get_terminal_size
 from functools import cache
 from random import sample
+from dataclasses import dataclass
 
 
 @cache
@@ -37,6 +38,13 @@ def makeMd(header: Iterable[str], data: Iterable[tuple]) -> str:
     return result.strip()
 
 
+def truncate(text: str, length: int = 64) -> str:
+    """Truncate the given text to the given length."""
+    if len(text) > length:
+        text = text[: length - 3] + "..."
+    return text
+
+
 def banner(text: str):
     """Print a nice banner centered with the given text."""
     width = get_terminal_size().columns
@@ -46,12 +54,13 @@ def banner(text: str):
     print(text.center(width, "="))
 
 
-@cache # Cache the result of this function
+@cache  # Cache the result of this function
 def getPrompt(role: str, scene: str) -> str:
     """Get the prompt for the given role and scene."""
     with open(f"./prompts/{role}/{scene}.md") as f:
         return f.read()
-    
+
+
 def formatResponse(response: str) -> dict[str, str]:
     """Format the response into a dictionary."""
     # Agent response be like:
@@ -74,3 +83,15 @@ def formatResponse(response: str) -> dict[str, str]:
     for key in result:
         result[key] = result[key].strip()
     return result
+
+
+@dataclass
+class Commandline:
+    """Dummy class for "typing" commandline arguments."""
+
+    task: str         # Path to the task directory.
+    rounds: int       # Maximum number of rounds to find the best prompt.
+    population: int   # Number of prompts to keep after each iteration.
+    train_sample: int # Maximum number of examples to use when training on each iteration.
+    eval_sample: int  # Maximum number of examples to use on evaluation.
+    verbose: int      # Verbosity level.

@@ -1,16 +1,20 @@
 import openai
-import backoff
+from backoff import on_exception, expo
+import asyncio
+from ratelimit import limits, RateLimitException
 from atexit import register as on_exit
 from json import load, dump
 
 # Load configuration
 with open("config.json") as f:
-    config = load(f)
+    config: dict = load(f)
 
-client = openai.OpenAI(api_key=config["openai_key"], base_url=config["openai_endpoint"])
+client = openai.AsyncOpenAI(
+    api_key=config["openai_key"], base_url=config.get("openai_endpoint", None)
+)
 
-COST_FACTOR = config["cost_factor"]  # Cost per token
-tokenLimit = config["single_token_limit"]  # Token limit per run
+COST_FACTOR = config.get("cost_factor", 2e-06)  # Cost per token
+tokenLimit = config.get("single_token_limit", 300000)  # Token limit per run
 tokensUsed = 0  # Tokens used in this run
 
 
@@ -33,7 +37,7 @@ def printUsage():
 
 def beforeExit():
     printUsage()
-    config["tokens_used"] += tokensUsed
+    config["tokens_used"] = config.get("tokens_used", 0) + tokensUsed
     config["cost"] = config["tokens_used"] * COST_FACTOR
     with open("config.json", "w") as f:
         dump(config, f, indent=4)
@@ -43,9 +47,10 @@ def beforeExit():
 on_exit(beforeExit)
 
 
-@backoff.on_exception(backoff.expo, openai.RateLimitError)
-def chat_with_backoff(**kwargs):
-    return client.chat.completions.create(**kwargs)
+@on_exception(lambda: expo(max_value=60), (RateLimitException, openai.RateLimitError), max_tries=32)
+@limits(calls=config.get("rpm", 60), period=60)
+async def chat_with_backoff(**kwargs):
+    return await client.chat.completions.create(**kwargs)
 
 
 class Agent:
@@ -56,18 +61,18 @@ class Agent:
         self.system_prompt = system_prompt
         self.model = model
 
-    def chat(self, text: str) -> str:
+    async def chat(self, text: str) -> str:
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": text},
         ]
-        r = chat_with_backoff(model=self.model, messages=messages)
+        r = await chat_with_backoff(model=self.model, messages=messages)
         incrementTokensUsed(r.usage.total_tokens)
         return r.choices[0].message.content
 
 
-def simple_chat(system_prompt, msg, model="gpt-3.5-turbo"):
-    r = client.chat.completions.create(
+async def simple_chat(system_prompt, msg, model="gpt-3.5-turbo") -> str:
+    r = await chat_with_backoff(
         model=model,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -79,10 +84,13 @@ def simple_chat(system_prompt, msg, model="gpt-3.5-turbo"):
 
 
 if __name__ == "__main__":
-    # Test the agent
-    agent = Agent("You are a helpful assistant.", memory_rounds=5)
-    while True:
-        text = input("You: ")
-        if text == "exit":
-            break
-        print("Assistant:", agent.chat(text))
+    async def main():
+        # Test the agent
+        agent = Agent("You are a helpful assistant.")
+        while True:
+            text = input("You: ")
+            if text == "exit":
+                break
+            print("Assistant:", await agent.chat(text))
+
+    asyncio.run(main())

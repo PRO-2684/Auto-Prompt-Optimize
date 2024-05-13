@@ -1,1 +1,0 @@
-py main.py --train-sample=4 --eval-sample=4 --rounds=8
