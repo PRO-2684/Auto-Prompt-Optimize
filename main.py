@@ -157,7 +157,7 @@ async def enhance(prompt: Prompt) -> Prompt | None:
     log("<<<", response, verbose=3)
     formatted = formatResponse(response)
     new_prompt = formatted.get("Prompt")
-    if (not new_prompt) or "DONE" in new_prompt or new_prompt == prompt.text:
+    if (not new_prompt) or new_prompt == prompt.text:
         log(f'No enhancement for "{truncate(prompt.text)}"', verbose=1)
         return None
     log(
@@ -181,17 +181,21 @@ async def round(prompts: list[Prompt]) -> list[Prompt]:
     return prompts
 
 
+async def showPrompts(prompts: list[Prompt]):
+    for prompt in prompts:
+        log(f'"{truncate(prompt.text)}" ({await prompt.score})', verbose=0)
+
+
 async def train() -> list[Prompt] | None:
-    log("Initializing prompts", verbose=0)
+    log("Initializing prompts...", verbose=0)
     prompts = await genInitPrompts()
-    log(
-        "Initial prompts:",
-        [f'"{truncate(prompt.text)}" ({await prompt.score})' for prompt in prompts],
-        verbose=0,
-    )
+    log("Initial prompts:", verbose=0)
+    await showPrompts(prompts)
     for i in range(args.rounds):
-        log(f"[#{i+1}/{args.rounds}] Training", verbose=0)
+        log(f"[#{i+1}/{args.rounds}] Training...", verbose=0)
         prompts = await round(prompts)
+        log(f"[#{i+1}/{args.rounds}] Prompts:", verbose=0)
+        await showPrompts(prompts)
     return prompts
 
 
