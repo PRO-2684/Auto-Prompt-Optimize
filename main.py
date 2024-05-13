@@ -160,7 +160,11 @@ async def enhance(prompt: Prompt) -> Prompt | None:
     if (not new_prompt) or "DONE" in new_prompt or new_prompt == prompt.text:
         log(f'No enhancement for "{truncate(prompt.text)}"', verbose=1)
         return None
-    log(f'Enhanced prompt for "{truncate(prompt.text)}":', truncate(new_prompt), verbose=1)
+    log(
+        f'Enhanced prompt for "{truncate(prompt.text)}":',
+        truncate(new_prompt),
+        verbose=1,
+    )
     return Prompt(new_prompt)
 
 
@@ -180,11 +184,16 @@ async def round(prompts: list[Prompt]) -> list[Prompt]:
 async def train() -> list[Prompt] | None:
     log("Initializing prompts", verbose=0)
     prompts = await genInitPrompts()
-    log("Initial prompts:", [f'"{truncate(prompt.text)}" ({await prompt.score})' for prompt in prompts], verbose=0)
+    log(
+        "Initial prompts:",
+        [f'"{truncate(prompt.text)}" ({await prompt.score})' for prompt in prompts],
+        verbose=0,
+    )
     for i in range(args.rounds):
         log(f"[#{i+1}/{args.rounds}] Training", verbose=0)
         prompts = await round(prompts)
     return prompts
+
 
 async def main():
     prompts = await train()
@@ -194,6 +203,7 @@ async def main():
             best_prompt = prompt
     log(f"* Best prompt: {best_prompt.text}", verbose=0)
     log(f"* Score: {await best_prompt.score}/5", verbose=0)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

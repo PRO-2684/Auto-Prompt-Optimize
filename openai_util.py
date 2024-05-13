@@ -47,7 +47,11 @@ def beforeExit():
 on_exit(beforeExit)
 
 
-@on_exception(lambda: expo(max_value=60), (RateLimitException, openai.RateLimitError), max_tries=32)
+@on_exception(
+    lambda: expo(max_value=60),
+    (RateLimitException, openai.RateLimitError),
+    max_tries=32,
+)
 @limits(calls=config.get("rpm", 60), period=60)
 async def chat_with_backoff(**kwargs):
     return await client.chat.completions.create(**kwargs)
@@ -84,6 +88,7 @@ async def simple_chat(system_prompt, msg, model="gpt-3.5-turbo") -> str:
 
 
 if __name__ == "__main__":
+
     async def main():
         # Test the agent
         agent = Agent("You are a helpful assistant.")

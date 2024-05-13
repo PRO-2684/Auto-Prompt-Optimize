@@ -63,13 +63,6 @@ def getPrompt(role: str, scene: str) -> str:
 
 def formatResponse(response: str) -> dict[str, str]:
     """Format the response into a dictionary."""
-    # Agent response be like:
-    # # Thoughts
-    # <thoughts>
-    # # Prompt
-    # <prompt>
-    # # ...
-    # ...
     result = {}
     lines = response.strip().split("\n")
     key = ""
@@ -89,9 +82,15 @@ def formatResponse(response: str) -> dict[str, str]:
 class Commandline:
     """Dummy class for "typing" commandline arguments."""
 
-    task: str         # Path to the task directory.
-    rounds: int       # Maximum number of rounds to find the best prompt.
-    population: int   # Number of prompts to keep after each iteration.
-    train_sample: int # Maximum number of examples to use when training on each iteration.
-    eval_sample: int  # Maximum number of examples to use on evaluation.
-    verbose: int      # Verbosity level.
+    task: str
+    """Path to the task directory."""
+    rounds: int
+    """Maximum number of rounds to find the best prompt."""
+    population: int
+    """Number of prompts to keep after each iteration."""
+    train_sample: int
+    """Maximum number of examples to use when training on each iteration."""
+    eval_sample: int
+    """Maximum number of examples to use on evaluation."""
+    verbose: int
+    """Verbosity level."""
