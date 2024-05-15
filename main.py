@@ -15,7 +15,7 @@ from random import choices
 import asyncio
 
 
-INTERVALS = {"_getExamples": 0.5, "initPrompts": 0.5}
+INTERVALS = {"_getExamples": 0.5, "initPrompts": 0.5, "evaluate": 0.5}
 
 parser = ArgumentParser()
 parser.add_argument(
@@ -83,31 +83,13 @@ class Prompt:
         self.examples = asyncio.create_task(self._getExamples(inputs, expected_outputs))
         self.score = asyncio.create_task(self._getScore())
 
-    async def _getExample(
-        self, input: str, expected_output: str
-    ) -> tuple[str, str, str, int]:
-        real_output = await simple_chat(self.text, input)
-        prompt = getPrompt("evaluator", "after").format(
-            text1=expected_output, text2=real_output
-        )
-        log(">>>", truncate(prompt), verbose=3)
-        response = await evaluator.chat(prompt)
-        log("<<<", truncate(response), verbose=3)
-        formatted = formatResponse(response)
-        rating = formatted.get("Rating")
-        rating = int(search(r"\d", rating).group()) if rating else 0
-        log(
-            f'Rating for "{truncate(expected_output)}" <-> "{truncate(real_output)}": {rating}',
-            verbose=2,
-        )
-        return input, expected_output, real_output, rating
 
     async def _getExamples(
         self, inputs: list[str], expected_outputs: list[str]
     ) -> list[tuple[str, str, str, int]]:
         examples = []
-        for input, expected_output in zip(inputs, expected_outputs):
-            examples.append(self._getExample(input, expected_output))
+        for input, expected_output in zip(inputs, expected_outputs, strict=True):
+            examples.append(ratePrompt(self.text, input, expected_output))
             await asyncio.sleep(INTERVALS["_getExamples"])
         return await asyncio.gather(*examples)
 
@@ -117,6 +99,26 @@ class Prompt:
         avg_score = sum_score / len(examples)
         log(f'Score for "{truncate(self.text)}": {avg_score}', verbose=2)
         return avg_score
+
+
+async def ratePrompt(
+    prompt: str, input: str, expected_output: str
+) -> tuple[str, str, str, int]:
+    real_output = await simple_chat(prompt, input)
+    userPrompt = getPrompt("evaluator", "after").format(
+        text1=expected_output, text2=real_output
+    )
+    log(">>>", truncate(userPrompt), verbose=3)
+    response = await evaluator.chat(userPrompt)
+    log("<<<", truncate(response), verbose=3)
+    formatted = formatResponse(response)
+    rating = formatted.get("Rating")
+    rating = int(search(r"\d", rating).group()) if rating else 0
+    log(
+        f'Rating for "{truncate(expected_output)}" <-> "{truncate(real_output)}": {rating}',
+        verbose=2,
+    )
+    return input, expected_output, real_output, rating
 
 
 async def genInitPrompt() -> Prompt:
@@ -186,6 +188,23 @@ async def showPrompts(prompts: list[Prompt]):
         log(f'"{truncate(prompt.text)}" ({await prompt.score})', verbose=0)
 
 
+async def evaluate(prompt: Prompt) -> float:
+    text = prompt.text
+    inputs, expected_outputs = sampleLines(
+        [f"{args.task}/eval-input.txt", f"{args.task}/eval-output.txt"],
+        args.eval_sample,
+    )
+    examples = []
+    for input, expected_output in zip(inputs, expected_outputs, strict=True):
+        examples.append(ratePrompt(text, input, expected_output))
+        await asyncio.sleep(INTERVALS["evaluate"])
+    examples = await asyncio.gather(*examples)
+    sum_score = sum(score for _, _, _, score in examples)
+    avg_score = sum_score / len(examples)
+    log(f'Evaluation score for "{truncate(text)}": {avg_score}', verbose=1)
+    return avg_score
+
+
 async def train() -> list[Prompt] | None:
     log("Initializing prompts...", verbose=0)
     prompts = await genInitPrompts()
@@ -206,7 +225,10 @@ async def main():
         if (await prompt.score) > (await best_prompt.score):
             best_prompt = prompt
     log(f"* Best prompt: {best_prompt.text}", verbose=0)
-    log(f"* Score: {await best_prompt.score}/5", verbose=0)
+    log(f"* Training score: {await best_prompt.score}/5", verbose=0)
+    log("Evaluating best prompt...", verbose=0)
+    score = await evaluate(best_prompt)
+    log(f"* Evaluation score: {score}/5", verbose=0)
 
 
 if __name__ == "__main__":

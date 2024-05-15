@@ -1,5 +1,13 @@
 # Auto Prompt Optimization
 
+## 🤔 Introduction
+
+This repository helps you to automate the process of inferring system prompts of a LLM app, given some of its `<input, output>` pairs. It has the following features:
+
+- **Asynchronous**: Fully leverage your computer's power.
+- **Controllable**: Name your own rate limit (RPM) and token limit per run, and the program will respect it.
+- **Track usage**: Automatically tracks how many tokens you've used and calculates estimated cost.
+
 ## 📥 Setup
 
 ### 📦 Dependencies
@@ -24,7 +32,7 @@ Create a file named `config.json` in the root directory of this repo. Here's how
 }
 ```
 
-## 🤔 Usage
+## 📖 Usage
 
 ```text
 $ python3 main.py --help
@@ -60,7 +68,7 @@ The task directory shall be a folder containing the following files:
 3. Let the agent enhance each prompt based on corresponding evaluation result, so we now have $2k$ prompts.
 4. [Evaluate](#evaluation) each prompt (if not already evaluated) on randomly-selected $e$ samples from the training set, and randomly select $k$ prompts with the weighted probability of their scores.
 5. Repeat steps 3-4 for $r$ rounds.
-6. Output the best prompt with the highest score.
+6. Select the best prompt with the highest score and evaluate it against the evaluation set.
 
 ### Evaluation
 
@@ -86,3 +94,6 @@ Given a prompt and a set of example inputs and outputs:
 
 - [microsoft/EvoPrompt: Automatic Prompt Optimization (github.com)](https://github.com/microsoft/EvoPrompt)
 - [HouYi (github.com)](https://github.com/LLMSecurity/HouYi)
+- [openai/openai-python: The official Python library for the OpenAI API (github.com)](https://github.com/openai/openai-python)
+- [litl/backoff: Python library providing function decorators for configurable backoff and retry (github.com)](https://github.com/litl/backoff)
+- [tomasbasham/ratelimit: API Rate Limit Decorator (github.com)](https://github.com/tomasbasham/ratelimit)
