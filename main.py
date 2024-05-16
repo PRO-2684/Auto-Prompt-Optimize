@@ -1,6 +1,6 @@
 from openai_util import Agent, simple_chat
 from argparse import ArgumentParser
-from typing import Iterable, Generator, Any
+from random import shuffle, sample
 from re import search
 from math import exp
 from utils import (
@@ -53,6 +53,13 @@ parser.add_argument(
     type=int,
     default=32,
     help="Maximum number of examples to use on evaluation, default to 32.",
+)
+parser.add_argument(
+    "-c",
+    "--cross-ratio",
+    type=float,
+    default=0.5,
+    help="The ratio of cross-enhancement, default to 0.5.",
 )
 parser.add_argument(
     "-v",
@@ -155,8 +162,8 @@ async def genInitPrompts() -> list[Prompt]:
     return await asyncio.gather(*prompts)
 
 
-async def enhance(prompt: Prompt) -> Prompt | None:
-    """Try to enhance the given prompt."""
+async def selfEnhance(prompt: Prompt) -> Prompt | None:
+    """Try to self-enhance the given prompt."""
     user_prompt = getPrompt("agent", "after").format(
         prompt=prompt.text,
         examples=makeMd(
@@ -169,10 +176,32 @@ async def enhance(prompt: Prompt) -> Prompt | None:
     formatted = formatResponse(response)
     new_prompt = formatted.get("Prompt")
     if (not new_prompt) or new_prompt == prompt.text:
-        log(f'No enhancement for "{truncate(prompt.text)}"', verbose=1)
+        log(f'No self-enhancement for "{truncate(prompt.text)}"', verbose=1)
         return None
     log(
-        f'Enhanced prompt for "{truncate(prompt.text)}":',
+        f'Self-enhanced prompt for "{truncate(prompt.text)}":',
+        truncate(new_prompt),
+        verbose=1,
+    )
+    return Prompt(new_prompt)
+
+
+async def crossEnhance(prompt1: Prompt, prompt2: Prompt) -> Prompt | None:
+    """Try to cross-enhance the given prompts."""
+    user_prompt = getPrompt("agent", "cross").format(
+        prompt1=prompt1.text,
+        prompt2=prompt2.text
+    )
+    log(">>>", user_prompt, verbose=3)
+    response = await agent.chat(user_prompt)
+    log("<<<", response, verbose=3)
+    formatted = formatResponse(response)
+    new_prompt = formatted.get("2. Mutated Prompt")
+    if (not new_prompt) or new_prompt == prompt1.text or new_prompt == prompt2.text:
+        log(f'No cross-enhancement for "{truncate(prompt1.text, 32)}" and "{truncate(prompt2.text, 32)}"', verbose=1)
+        return None
+    log(
+        f'Cross-enhanced prompt for "{truncate(prompt1.text, 32)}" and "{truncate(prompt2.text, 32)}":',
         truncate(new_prompt),
         verbose=1,
     )
@@ -187,14 +216,36 @@ async def samplePrompts(prompts: list[Prompt], k: int=args.population) -> list[P
     return prompts
 
 
-async def round(prompts: list[Prompt]) -> list[Prompt]:
-    """Each round of training process."""
+async def selfEnhances(prompts: list[Prompt]) -> list[Prompt]:
+    """Try to self-enhance the given prompts."""
     enhanced_prompts = []
     for prompt in prompts:
-        enhanced_prompts.append(enhance(prompt))
+        enhanced_prompts.append(selfEnhance(prompt))
     enhanced_prompts = await asyncio.gather(*enhanced_prompts)
     enhanced_prompts = filter(None, enhanced_prompts)
-    prompts.extend(enhanced_prompts)
+    return list(enhanced_prompts)
+
+
+async def crossEnhances(prompts: list[Prompt]) -> list[Prompt]:
+    """Try to cross-enhance the given prompts."""
+    cross_enhance_cnt = int(args.cross_ratio * len(prompts) / 2)
+    indices = list(sample(range(len(prompts)), cross_enhance_cnt * 2))
+    shuffle(indices)
+    enhanced_prompts = []
+    for i in range(cross_enhance_cnt):
+        a, b = indices[i * 2], indices[i * 2 + 1]
+        enhanced_prompts.append(crossEnhance(prompts[a], prompts[b]))
+    enhanced_prompts = await asyncio.gather(*enhanced_prompts)
+    enhanced_prompts = filter(None, enhanced_prompts)
+    return list(enhanced_prompts)
+
+
+async def round(prompts: list[Prompt]) -> list[Prompt]:
+    """Each round of training process."""
+    self_enhanced = asyncio.create_task(selfEnhances(prompts))
+    cross_enhanced = asyncio.create_task(crossEnhances(prompts))
+    prompts.extend(await self_enhanced)
+    prompts.extend(await cross_enhanced)
     prompts = await samplePrompts(prompts)
     return prompts
 

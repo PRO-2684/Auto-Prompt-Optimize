@@ -108,5 +108,7 @@ class Commandline:
     """Maximum number of examples to use when training on each iteration."""
     eval_sample: int
     """Maximum number of examples to use on evaluation."""
+    cross_ratio: float
+    """The ratio of cross-enhancement."""
     verbose: int
     """Verbosity level."""

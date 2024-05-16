@@ -36,7 +36,7 @@ Create a file named `config.json` in the root directory of this repo. Here's how
 
 ```text
 $ python3 main.py --help
-usage: main.py [-h] [-T TASK] [-r ROUNDS] [-p POPULATION] [-t TRAIN_SAMPLE] [-e EVAL_SAMPLE] [-v]
+usage: main.py [-h] [-T TASK] [-r ROUNDS] [-p POPULATION] [-t TRAIN_SAMPLE] [-e EVAL_SAMPLE] [-c CROSS_RATIO] [-v]
 
 options:
   -h, --help            show this help message and exit
@@ -49,6 +49,8 @@ options:
                         Maximum number of examples to use when training on each iteration, default to 8.
   -e EVAL_SAMPLE, --eval-sample EVAL_SAMPLE
                         Maximum number of examples to use on evaluation, default to 32.
+  -c CROSS_RATIO, --cross-ratio CROSS_RATIO
+                        The ratio of cross-enhancement, default to 0.5.
   -v, --verbose         Increase verbosity.
 ```
 
@@ -65,10 +67,11 @@ The task directory shall be a folder containing the following files:
 
 1. Given $t$ samples from the training set, let the agent generate $k$ initial prompts.
 2. [Evaluate](#evaluation) each prompt on randomly-selected $e$ samples from the training set.
-3. Let the agent enhance each prompt based on corresponding evaluation result, so we now have $2k$ prompts.
-4. [Evaluate](#evaluation) each prompt (if not already evaluated) on randomly-selected $e$ samples from the training set, and randomly select $k$ prompts with the weighted probability of their exponentiated scores. (so as to accentuate the differences)
-5. Repeat steps 3-4 for $r$ rounds.
-6. Select the best prompt with the highest score and evaluate it against the evaluation set.
+3. Let the agent self-enhance each prompt based on corresponding evaluation result, so we now have $2k$ prompts.
+4. Let the agent cross-enhance randomly-selected $\lfloor ck/2\rfloor$ prompt pairs, so we now have $2k + \lfloor ck/2\rfloor$ prompts.
+5. [Evaluate](#evaluation) each prompt (if not already evaluated) on randomly-selected $e$ samples from the training set, and randomly select $k$ prompts with the weighted probability of their exponentiated scores. (so as to accentuate the differences)
+6. Repeat steps 3-4 for $r$ rounds.
+7. Select the best prompt with the highest score and evaluate it against the evaluation set.
 
 ### Evaluation
 
@@ -87,8 +90,7 @@ Given a prompt and a set of example inputs and outputs:
 
 ## 📃 TODO
 
-- Make self-enhancement probabilistic. The probability of enhancing a prompt should be inversely proportional to its score.
-- Add probabilistic cross-enhancement. The probability of enhancing a prompt with another prompt should be proportional to their scores.
+- Make cross-enhancement's probability proportional to score.
 
 ## 🎉 Acknowledgements
 
