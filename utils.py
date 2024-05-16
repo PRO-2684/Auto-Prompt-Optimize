@@ -1,7 +1,7 @@
 from typing import Iterable
 from os import get_terminal_size
 from functools import cache
-from random import sample
+from random import sample, choices
 from dataclasses import dataclass
 
 
@@ -24,6 +24,22 @@ def sampleLines(paths: list[str], n: int) -> list[list[str]]:
     indices = sample(range(minLineCnt), n)
     sampled = [[lines[i] for i in indices] for lines in data]
     return sampled
+
+
+def weighted_sample_without_replacement(population, weights, k=1):
+    # https://stackoverflow.com/a/43649323/16468609
+    weights = list(weights)
+    positions = range(len(population))
+    indices = []
+    while True:
+        needed = k - len(indices)
+        if not needed:
+            break
+        for i in choices(positions, weights, k=needed):
+            if weights[i]:
+                weights[i] = 0.0
+                indices.append(i)
+    return [population[i] for i in indices]
 
 
 def makeMd(header: Iterable[str], data: Iterable[tuple]) -> str:

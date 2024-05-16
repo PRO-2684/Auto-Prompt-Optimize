@@ -1,8 +1,11 @@
 from openai_util import Agent, simple_chat
 from argparse import ArgumentParser
 from typing import Iterable, Generator, Any
+from re import search
+from math import exp
 from utils import (
     sampleLines,
+    weighted_sample_without_replacement,
     makeMd,
     truncate,
     banner,
@@ -10,8 +13,6 @@ from utils import (
     formatResponse,
     Commandline,
 )
-from re import search
-from random import choices
 import asyncio
 
 
@@ -74,7 +75,9 @@ evaluator = Agent(getPrompt("evaluator", "system"))
 
 
 class Prompt:
+    """A simple wrapper of prompt, with its score and examples."""
     def __init__(self, text: str):
+        """Initialize a `Prompt`."""
         self.text: str = text or ""
         inputs, expected_outputs = sampleLines(
             [f"{args.task}/train-input.txt", f"{args.task}/train-output.txt"],
@@ -87,6 +90,7 @@ class Prompt:
     async def _getExamples(
         self, inputs: list[str], expected_outputs: list[str]
     ) -> list[tuple[str, str, str, int]]:
+        """Get examples from training set to evaluate the prompt. Internal use only."""
         examples = []
         for input, expected_output in zip(inputs, expected_outputs, strict=True):
             examples.append(ratePrompt(self.text, input, expected_output))
@@ -94,6 +98,7 @@ class Prompt:
         return await asyncio.gather(*examples)
 
     async def _getScore(self) -> float:
+        """Evaluate process for this prompt. Internal use only."""
         examples = await self.examples
         sum_score = sum(score for _, _, _, score in examples)
         avg_score = sum_score / len(examples)
@@ -104,6 +109,7 @@ class Prompt:
 async def ratePrompt(
     prompt: str, input: str, expected_output: str
 ) -> tuple[str, str, str, int]:
+    """Rate a prompt given input and expected output."""
     real_output = await simple_chat(prompt, input)
     userPrompt = getPrompt("evaluator", "after").format(
         text1=expected_output, text2=real_output
@@ -122,6 +128,7 @@ async def ratePrompt(
 
 
 async def genInitPrompt() -> Prompt:
+    """Generate an initial prompt."""
     while True:
         inputs, expected_outputs = sampleLines(
             [f"{args.task}/train-input.txt", f"{args.task}/train-output.txt"],
@@ -140,6 +147,7 @@ async def genInitPrompt() -> Prompt:
 
 
 async def genInitPrompts() -> list[Prompt]:
+    """Generate `population` initial prompts."""
     prompts = []
     for _ in range(args.population):
         prompts.append(genInitPrompt())
@@ -148,6 +156,7 @@ async def genInitPrompts() -> list[Prompt]:
 
 
 async def enhance(prompt: Prompt) -> Prompt | None:
+    """Try to enhance the given prompt."""
     user_prompt = getPrompt("agent", "after").format(
         prompt=prompt.text,
         examples=makeMd(
@@ -170,25 +179,34 @@ async def enhance(prompt: Prompt) -> Prompt | None:
     return Prompt(new_prompt)
 
 
+async def samplePrompts(prompts: list[Prompt], k: int=args.population) -> list[Prompt]:
+    """Sample `k` prompts based on their weights."""
+    weights = await asyncio.gather(*(prompt.score for prompt in prompts))
+    weights = map(exp, weights) # Exponentiate the weights so as to accentuate the differences
+    prompts = weighted_sample_without_replacement(prompts, weights=weights, k=k)
+    return prompts
+
+
 async def round(prompts: list[Prompt]) -> list[Prompt]:
+    """Each round of training process."""
     enhanced_prompts = []
     for prompt in prompts:
         enhanced_prompts.append(enhance(prompt))
     enhanced_prompts = await asyncio.gather(*enhanced_prompts)
     enhanced_prompts = filter(None, enhanced_prompts)
     prompts.extend(enhanced_prompts)
-    # Sample the best prompts with weighted probability
-    weights = await asyncio.gather(*(prompt.score for prompt in prompts))
-    prompts = choices(prompts, weights=weights, k=args.population)
+    prompts = await samplePrompts(prompts)
     return prompts
 
 
 async def showPrompts(prompts: list[Prompt]):
+    """Display each prompt in `prompts` nicely."""
     for prompt in prompts:
         log(f'"{truncate(prompt.text)}" ({await prompt.score})', verbose=0)
 
 
 async def evaluate(prompt: Prompt) -> float:
+    """Evaluate a single prompt."""
     text = prompt.text
     inputs, expected_outputs = sampleLines(
         [f"{args.task}/eval-input.txt", f"{args.task}/eval-output.txt"],
@@ -205,11 +223,8 @@ async def evaluate(prompt: Prompt) -> float:
     return avg_score
 
 
-async def train() -> list[Prompt] | None:
-    log("Initializing prompts...", verbose=0)
-    prompts = await genInitPrompts()
-    log("Initial prompts:", verbose=0)
-    await showPrompts(prompts)
+async def train(prompts: list[Prompt]) -> list[Prompt] | None:
+    """The training process."""
     for i in range(args.rounds):
         log(f"[#{i+1}/{args.rounds}] Training...", verbose=0)
         prompts = await round(prompts)
@@ -219,13 +234,23 @@ async def train() -> list[Prompt] | None:
 
 
 async def main():
-    prompts = await train()
+    """The complete procedure."""
+    banner("Initializing")
+    log("Initializing prompts...")
+    prompts = await genInitPrompts()
+    log("Initial prompts:", verbose=0)
+    await showPrompts(prompts)
+
+    banner("Training")
+    prompts = await train(prompts)
     best_prompt = prompts[0]
     for prompt in prompts:
         if (await prompt.score) > (await best_prompt.score):
             best_prompt = prompt
     log(f"* Best prompt: {best_prompt.text}", verbose=0)
     log(f"* Training score: {await best_prompt.score}/5", verbose=0)
+
+    banner("Evaluating")
     log("Evaluating best prompt...", verbose=0)
     score = await evaluate(best_prompt)
     log(f"* Evaluation score: {score}/5", verbose=0)
