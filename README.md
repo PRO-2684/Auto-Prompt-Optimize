@@ -87,7 +87,6 @@ Given a prompt and a set of example inputs and outputs:
 
 ## 📃 TODO
 
-- Adjust weights
 - Make self-enhancement probabilistic. The probability of enhancing a prompt should be inversely proportional to its score.
 - Add probabilistic cross-enhancement. The probability of enhancing a prompt with another prompt should be proportional to their scores.
 
