@@ -4,7 +4,7 @@ Repo: [GitHub](https://github.com/PRO-2684/Auto-Prompt-Optimize/)
 
 ## 🤔 Introduction
 
-This repository helps you to automate the process of inferring system prompts of a LLM app, given some of its `<input, output>` pairs. It has the following features:
+This repository helps you to automate the process of inferring and optimizing system prompts of a LLM app, given some of its `<input, output>` pairs. It has the following features:
 
 - **Asynchronous**: Fully leverage your computer's power.
 - **Controllable**: Name your own rate limit (RPM) and token limit per run, and the program will respect it.
